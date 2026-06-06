@@ -1,1 +1,51 @@
+import json
+import boto3
+import os
+from datetime import datetime
 
+dynamodb = boto3.resource('dynamodb')
+
+table = dynamodb.Table(
+    os.environ['HEALTH_TABLE']
+)
+
+def update_health(service, status, error=None):
+
+    table.put_item(
+        Item={
+            'service_name': service,
+            'last_check': datetime.utcnow().isoformat(),
+            'status': status,
+            'last_error': error or "None"
+        }
+    )
+
+def lambda_handler(event, context):
+
+    try:
+
+        # Test monitoring system
+        update_health(
+            service='monitoring_lambda',
+            status='HEALTHY'
+        )
+
+        return {
+            'statusCode': 200,
+            'body': json.dumps(
+                'Monitoring check successful'
+            )
+        }
+
+    except Exception as e:
+
+        update_health(
+            service='monitoring_lambda',
+            status='FAILED',
+            error=str(e)
+        )
+
+        return {
+            'statusCode': 500,
+            'body': json.dumps(str(e))
+        }
